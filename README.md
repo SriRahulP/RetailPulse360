@@ -589,24 +589,24 @@ Mark Dim_Date as date table
 
 | Resource | Link |
 |----------|------|
-| 📊 **Live Dashboard** | [View on Power BI Service](your-powerbi-link-here) |
-| 💼 **LinkedIn Profile** | [Connect with me](your-linkedin-here) |
-| 📧 **Email** | your-email-here |
+| 📊 **Live Dashboard** | [View on Power BI Service](https://app.powerbi.com/groups/me/reports/09d2ac1c-2726-49f5-95b4-7988ae63bb66/7cefead76b8f1f7831b0?experience=power-bi) |
+| 💼 **LinkedIn Profile** | [Connect with me](www.linkedin.com/in/srirahulp2005) |
+| 📧 **Email** | rahulnjr111@gmail.com |
 
 </div>
 
 ---
 
-## 👤 About the Author
+## About the Author
 
 <div align="center">
 
-**Rahul P**
+**Sri Rahul P**
 
 *BTech — Computer and Communication Engineering*
 *Amrita Vishwa Vidyapeetham*
 
-**Skills:** Power BI · PostgreSQL · SQL · Python · DAX · Data Modeling · ETL · Business Intelligence · Data Analytics · Star Schema · Data Warehousing
+**Skills:** Power BI · PostgreSQL · SQL · Python · DAX · Data Modeling · ETL · Business Intelligence · Data Analytics · Star Schema · Data Warehousing · Data Science tools 
 
 </div>
 
@@ -619,6 +619,6 @@ Mark Dim_Date as date table
 *Built with 💛 as a portfolio project demonstrating end-to-end BI development*
 *for Data Analyst · BI Developer · Analytics Engineer roles*
 
-![Visitors](https://visitor-badge.laobi.icu/badge?page_id=your-username.RetailPulse360)
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=SriRahulP.RetailPulse360)
 
 </div>
