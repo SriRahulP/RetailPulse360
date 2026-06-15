@@ -1,0 +1,836 @@
+══════════════════════════════════════════════════════════════════
+RETAILPULSE 360 — DAX MEASURES PORTFOLIO
+Project: Retail Business Intelligence & Decision Analytics Platform
+Author:  Rahul
+Tools:   Power BI Desktop | PostgreSQL | DAX
+══════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════
+GROUP 0 — BASIC MEASURES (Phase 8)
+════════════════════════════════════════
+
+-- Measure: Total Revenue
+-- Purpose: Sum of all sales revenue across all transactions
+-- Used on: Executive Command Center, all pages
+
+Total Revenue =
+ROUND(SUM(Fact_Sales[revenue]), 2)
+
+----------------------------------------------------------
+
+-- Measure: Total Transactions
+-- Purpose: Count of all individual sale records
+-- Used on: Executive Command Center, Store Performance
+
+Total Transactions =
+COUNTROWS(Fact_Sales)
+
+----------------------------------------------------------
+
+-- Measure: Total Gross Profit
+-- Purpose: Sum of gross profit across all transactions
+-- Used on: Executive Command Center, Profitability page
+
+Total Gross Profit =
+ROUND(SUM(Fact_Sales[gross_profit]), 2)
+
+----------------------------------------------------------
+
+-- Measure: Gross Margin %
+-- Purpose: Percentage of revenue retained as profit after cost
+-- Formula: Gross Profit / Revenue * 100
+-- Used on: All pages, Store scorecard
+
+Gross Margin % =
+ROUND(
+    DIVIDE(
+        SUM(Fact_Sales[gross_profit]),
+        SUM(Fact_Sales[revenue]),
+        0
+    ) * 100, 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Total Quantity Sold
+-- Purpose: Total units sold across all transactions
+-- Used on: Store Performance page
+
+Total Quantity Sold =
+SUM(Fact_Sales[quantity])
+
+----------------------------------------------------------
+
+-- Measure: Revenue per Sqft
+-- Purpose: Measures store efficiency — how much revenue per square foot of floor space
+-- Real KPI used in Indian retail industry
+-- Used on: Store Performance page
+
+Revenue per Sqft =
+DIVIDE(
+    SUM(Fact_Sales[revenue]),
+    MAX(Dim_Store[store_size_sqft]),
+    0
+)
+
+----------------------------------------------------------
+
+-- Measure: Avg Transaction Value
+-- Purpose: Average revenue generated per sale transaction
+-- Used on: Store Performance page
+
+Avg Transaction Value =
+DIVIDE(
+    SUM(Fact_Sales[revenue]),
+    COUNTROWS(Fact_Sales),
+    0
+)
+
+----------------------------------------------------------
+
+-- Measure: Stockout Count
+-- Purpose: Number of inventory records where stock hit zero
+-- Used on: Inventory Intelligence page
+
+Stockout Count =
+CALCULATE(
+    COUNTROWS(Fact_Inventory),
+    Fact_Inventory[is_stockout] = TRUE()
+)
+
+----------------------------------------------------------
+
+-- Measure: Stockout Rate %
+-- Purpose: Percentage of inventory records that were stockouts
+-- Industry benchmark: anything above 5% is critical
+-- Used on: Inventory Intelligence page
+
+Stockout Rate % =
+ROUND(
+    DIVIDE(
+        CALCULATE(COUNTROWS(Fact_Inventory), Fact_Inventory[is_stockout] = TRUE()),
+        COUNTROWS(Fact_Inventory),
+        0
+    ) * 100, 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Avg Units On Hand
+-- Purpose: Average stock level across all products and stores
+-- Used on: Inventory Intelligence page
+
+Avg Units On Hand =
+ROUND(AVERAGE(Fact_Inventory[units_on_hand]), 0)
+
+----------------------------------------------------------
+
+-- Measure: Low Stock Items
+-- Purpose: Count of inventory records in Low Stock status
+-- Used on: Inventory Intelligence page
+
+Low Stock Items =
+CALCULATE(
+    COUNTROWS(Fact_Inventory),
+    Fact_Inventory[Stock_Status] = "Low Stock"
+)
+
+----------------------------------------------------------
+
+-- Measure: Total Purchase Orders
+-- Purpose: Total number of purchase orders placed with suppliers
+-- Used on: Supplier Tracker page
+
+Total Purchase Orders =
+COUNTROWS(Fact_PurchaseOrders)
+
+----------------------------------------------------------
+
+-- Measure: Delayed Orders
+-- Purpose: Count of purchase orders with Delayed status
+-- Used on: Supplier Tracker page
+
+Delayed Orders =
+CALCULATE(
+    COUNTROWS(Fact_PurchaseOrders),
+    Fact_PurchaseOrders[po_status] = "Delayed"
+)
+
+----------------------------------------------------------
+
+-- Measure: On Time Delivery %
+-- Purpose: Percentage of orders delivered on time
+-- Industry benchmark: anything below 85% needs attention
+-- Used on: Supplier Tracker page
+
+On Time Delivery % =
+ROUND(
+    DIVIDE(
+        CALCULATE(
+            COUNTROWS(Fact_PurchaseOrders),
+            Fact_PurchaseOrders[po_status] = "Delivered"
+        ),
+        COUNTROWS(Fact_PurchaseOrders),
+        0
+    ) * 100, 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Avg Delay Days
+-- Purpose: Average number of days suppliers deliver late
+-- Used on: Supplier Tracker page
+
+Avg Delay Days =
+ROUND(
+    AVERAGE(Fact_PurchaseOrders[Delay_Days]),
+    1
+)
+
+----------------------------------------------------------
+
+-- Measure: Unique Customers
+-- Purpose: Count of distinct customers who made at least one purchase
+-- Used on: Customer Cohorts page
+
+Unique Customers =
+DISTINCTCOUNT(Fact_Sales[customer_key])
+
+----------------------------------------------------------
+
+-- Measure: Revenue per Customer
+-- Purpose: Average revenue generated per unique customer
+-- Used on: Customer Cohorts page
+
+Revenue per Customer =
+DIVIDE(
+    SUM(Fact_Sales[revenue]),
+    DISTINCTCOUNT(Fact_Sales[customer_key]),
+    0
+)
+
+----------------------------------------------------------
+
+-- Measure: Avg Purchase Frequency
+-- Purpose: Average number of transactions per unique customer
+-- Used on: Customer Cohorts page
+
+Avg Purchase Frequency =
+DIVIDE(
+    COUNTROWS(Fact_Sales),
+    DISTINCTCOUNT(Fact_Sales[customer_key]),
+    0
+)
+
+----------------------------------------------------------
+
+-- Measure: Total Cost
+-- Purpose: Total cost of goods sold across all transactions
+-- Used on: Profitability page
+
+Total Cost =
+ROUND(SUM(Fact_Sales[cost]), 2)
+
+----------------------------------------------------------
+
+-- Measure: Avg Discount %
+-- Purpose: Average discount percentage given across all sales
+-- Used on: Profitability page
+
+Avg Discount % =
+ROUND(AVERAGE(Fact_Sales[discount_pct]), 2)
+
+----------------------------------------------------------
+
+-- Measure: Profit per Transaction
+-- Purpose: Average gross profit earned per sale transaction
+-- Used on: Profitability page
+
+Profit per Transaction =
+DIVIDE(
+    SUM(Fact_Sales[gross_profit]),
+    COUNTROWS(Fact_Sales),
+    0
+)
+
+----------------------------------------------------------
+
+-- Measure: Festival Revenue
+-- Purpose: Total revenue generated specifically on festival days
+-- Shows the business impact of Indian festivals on retail sales
+-- Used on: Demand Forecasting page
+
+Festival Revenue =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    Dim_Date[is_festival] = TRUE()
+)
+
+
+════════════════════════════════════════
+GROUP 1 — TIME INTELLIGENCE (Phase 9)
+════════════════════════════════════════
+-- Note: Requires Dim_Date marked as Date Table
+-- All time intelligence functions depend on this setting
+
+----------------------------------------------------------
+
+-- Measure: Revenue LY (Last Year)
+-- Purpose: Revenue for the same period in the previous year
+-- DAX Function: SAMEPERIODLASTYEAR shifts filter context back 12 months
+-- Used on: Executive Command Center (YoY comparison)
+-- Interview note: This is the most commonly asked time intelligence measure
+
+Revenue LY =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    SAMEPERIODLASTYEAR(Dim_Date[full_date])
+)
+
+----------------------------------------------------------
+
+-- Measure: Revenue YoY %
+-- Purpose: Year-over-year growth percentage
+-- Uses VAR to avoid calculating the same expression twice (performance optimization)
+-- Positive = growth, Negative = decline
+-- Used on: Executive Command Center
+
+Revenue YoY % =
+VAR CurrentRevenue = SUM(Fact_Sales[revenue])
+VAR LastYearRevenue =
+    CALCULATE(
+        SUM(Fact_Sales[revenue]),
+        SAMEPERIODLASTYEAR(Dim_Date[full_date])
+    )
+RETURN
+    ROUND(
+        DIVIDE(
+            CurrentRevenue - LastYearRevenue,
+            LastYearRevenue,
+            0
+        ) * 100, 2
+    )
+
+----------------------------------------------------------
+
+-- Measure: Revenue MTD
+-- Purpose: Cumulative revenue from the first day of current month to selected date
+-- Resets to zero at the start of every new month
+-- Used on: Executive Command Center KPI cards
+
+Revenue MTD =
+TOTALMTD(
+    SUM(Fact_Sales[revenue]),
+    Dim_Date[full_date]
+)
+
+----------------------------------------------------------
+
+-- Measure: Revenue QTD
+-- Purpose: Cumulative revenue from the first day of current quarter to selected date
+-- Resets to zero at the start of every new quarter
+-- Used on: Executive Command Center KPI cards
+
+Revenue QTD =
+TOTALQTD(
+    SUM(Fact_Sales[revenue]),
+    Dim_Date[full_date]
+)
+
+----------------------------------------------------------
+
+-- Measure: Revenue YTD
+-- Purpose: Cumulative revenue from Jan 1 of current year to selected date
+-- Resets to zero every January 1
+-- Used on: Executive Command Center KPI cards
+
+Revenue YTD =
+TOTALYTD(
+    SUM(Fact_Sales[revenue]),
+    Dim_Date[full_date]
+)
+
+-- Alternative without wrapper function (for interviews):
+-- Revenue YTD Manual =
+-- CALCULATE(
+--     SUM(Fact_Sales[revenue]),
+--     DATESYTD(Dim_Date[full_date])
+-- )
+
+----------------------------------------------------------
+
+-- Measure: Revenue Rolling 3M
+-- Purpose: Sum of revenue for the last 3 months from the current date context
+-- Smooths out spikes to show real trend direction
+-- DATESINPERIOD creates a dynamic 3-month window that moves with the visual
+-- Used on: Demand Forecasting page
+
+Revenue Rolling 3M =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    DATESINPERIOD(
+        Dim_Date[full_date],
+        LASTDATE(Dim_Date[full_date]),
+        -3,
+        MONTH
+    )
+)
+
+----------------------------------------------------------
+
+-- Measure: Revenue MoM %
+-- Purpose: Month-over-month growth percentage
+-- DATEADD shifts the date context back by 1 month
+-- Used on: Executive Command Center trend analysis
+
+Revenue MoM % =
+VAR CurrentMonth = SUM(Fact_Sales[revenue])
+VAR PreviousMonth =
+    CALCULATE(
+        SUM(Fact_Sales[revenue]),
+        DATEADD(Dim_Date[full_date], -1, MONTH)
+    )
+RETURN
+    ROUND(
+        DIVIDE(
+            CurrentMonth - PreviousMonth,
+            PreviousMonth,
+            0
+        ) * 100, 2
+    )
+
+----------------------------------------------------------
+
+-- Measure: YoY Growth Label
+-- Purpose: Displays YoY growth with directional arrow (▲ or ▼)
+-- Makes performance immediately visible without reading numbers
+-- Used on: Executive Command Center as a Card visual
+
+YoY Growth Label =
+VAR GrowthPct = [Revenue YoY %]
+RETURN
+    IF(
+        ISBLANK(GrowthPct),
+        "N/A",
+        IF(
+            GrowthPct >= 0,
+            "▲ " & FORMAT(GrowthPct, "0.00") & "%",
+            "▼ " & FORMAT(ABS(GrowthPct), "0.00") & "%"
+        )
+    )
+
+
+════════════════════════════════════════
+GROUP 2 — SALES ANALYTICS (Phase 9)
+════════════════════════════════════════
+
+----------------------------------------------------------
+
+-- Measure: Revenue Contribution %
+-- Purpose: What % of total revenue does the current filter context contribute
+-- ALL(Dim_Store) removes store filter so denominator = always total revenue
+-- Critical concept: ALL() is one of the most important DAX functions
+-- Used on: Store Performance page
+
+Revenue Contribution % =
+ROUND(
+    DIVIDE(
+        SUM(Fact_Sales[revenue]),
+        CALCULATE(
+            SUM(Fact_Sales[revenue]),
+            ALL(Dim_Store)
+        ),
+        0
+    ) * 100, 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Revenue Running Total
+-- Purpose: Cumulative revenue from the very beginning up to current date
+-- Unlike YTD, this does NOT reset every year
+-- Used on: Executive Command Center as a running total line chart
+
+Revenue Running Total =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    FILTER(
+        ALL(Dim_Date[full_date]),
+        Dim_Date[full_date] <= MAX(Dim_Date[full_date])
+    )
+)
+
+----------------------------------------------------------
+
+-- Measure: Top 5 Products Revenue
+-- Purpose: Revenue contributed by only the top 5 products
+-- TOPN selects the top N rows from a table based on a ranking expression
+-- Used on: Profitability page
+
+Top 5 Products Revenue =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    TOPN(
+        5,
+        ALL(Dim_Product[product_name]),
+        CALCULATE(SUM(Fact_Sales[revenue])),
+        DESC
+    )
+)
+
+----------------------------------------------------------
+
+-- Measure: Avg Basket Size
+-- Purpose: Average number of units per transaction
+-- Real retail KPI — higher basket size = better upsell performance
+-- Used on: Store Performance page
+
+Avg Basket Size =
+ROUND(
+    DIVIDE(
+        SUM(Fact_Sales[quantity]),
+        COUNTROWS(Fact_Sales),
+        0
+    ), 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Discount Amount
+-- Purpose: Total revenue given away as discounts
+-- SUMX iterates row by row — this is a row context iterator
+-- Interview note: SUMX vs SUM is heavily tested in DAX interviews
+-- Used on: Profitability page
+
+Discount Amount =
+ROUND(
+    SUMX(
+        Fact_Sales,
+        Fact_Sales[quantity] *
+        (Fact_Sales[unit_price] / (1 - Fact_Sales[discount_pct]/100) - Fact_Sales[unit_price])
+    ), 2
+)
+
+
+════════════════════════════════════════
+GROUP 3 — INVENTORY ANALYTICS (Phase 9)
+════════════════════════════════════════
+
+----------------------------------------------------------
+
+-- Measure: Inventory Turnover
+-- Purpose: How many times inventory was sold and replaced in a period
+-- Higher = more efficient inventory management
+-- Industry benchmark: 8-12x per year for FMCG retail
+-- Used on: Inventory Intelligence page
+
+Inventory Turnover =
+ROUND(
+    DIVIDE(
+        SUM(Fact_Sales[cost]),
+        AVERAGE(Fact_Inventory[units_on_hand]),
+        0
+    ), 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Days Inventory Outstanding (DIO)
+-- Purpose: How many days of stock remain at current sales rate
+-- Below 7 days = critical stockout risk
+-- Below 15 days = low stock warning
+-- Used on: Inventory Intelligence page
+
+Days Inventory Outstanding =
+ROUND(
+    DIVIDE(
+        AVERAGE(Fact_Inventory[units_on_hand]),
+        DIVIDE(SUM(Fact_Sales[quantity]), 30, 0),
+        0
+    ), 1
+)
+
+----------------------------------------------------------
+
+-- Measure: Stockout Warning
+-- Purpose: Dynamic text alert based on days of stock remaining
+-- Changes message based on DIO threshold
+-- Used on: Inventory Intelligence page as a Card visual
+
+Stockout Warning =
+IF(
+    [Days Inventory Outstanding] <= 7,
+    "⚠ CRITICAL — Reorder Now",
+    IF(
+        [Days Inventory Outstanding] <= 15,
+        "⚡ LOW — Monitor Closely",
+        "✅ HEALTHY"
+    )
+)
+
+----------------------------------------------------------
+
+-- Measure: Fill Rate %
+-- Purpose: What percentage of demand are we actually fulfilling
+-- Low fill rate = lost sales due to stockouts
+-- Used on: Inventory Intelligence page
+
+Fill Rate % =
+ROUND(
+    DIVIDE(
+        SUM(Fact_Inventory[units_sold]),
+        SUM(Fact_Inventory[units_sold]) + [Stockout Count],
+        0
+    ) * 100, 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Inventory Value at Risk
+-- Purpose: Total rupee value of inventory currently in Low Stock status
+-- RELATED fetches MRP from Dim_Product while iterating Fact_Inventory rows
+-- Interview note: RELATED works only inside row context (SUMX, FILTER etc.)
+-- Used on: Inventory Intelligence page
+
+Inventory Value at Risk =
+CALCULATE(
+    SUMX(
+        Fact_Inventory,
+        Fact_Inventory[units_on_hand] * RELATED(Dim_Product[mrp])
+    ),
+    Fact_Inventory[Stock_Status] = "Low Stock"
+)
+
+
+════════════════════════════════════════
+GROUP 4 — CUSTOMER ANALYTICS (Phase 9)
+════════════════════════════════════════
+-- RFM Model: Recency, Frequency, Monetary
+-- Most widely used customer segmentation framework in retail
+
+----------------------------------------------------------
+
+-- Measure: Last Purchase Date
+-- Purpose: Most recent purchase date for each customer
+-- R in RFM — Recency
+-- Used on: Customer Cohorts page
+
+Last Purchase Date =
+CALCULATE(
+    MAX(Fact_Sales[revenue]),
+    ALLEXCEPT(Fact_Sales, Fact_Sales[customer_key])
+)
+
+----------------------------------------------------------
+
+-- Measure: Purchase Frequency
+-- Purpose: Average number of purchases per customer
+-- F in RFM — Frequency
+-- Used on: Customer Cohorts page
+
+Purchase Frequency =
+DIVIDE(
+    COUNTROWS(Fact_Sales),
+    DISTINCTCOUNT(Fact_Sales[customer_key]),
+    0
+)
+
+----------------------------------------------------------
+
+-- Measure: Customer Lifetime Value (CLV)
+-- Purpose: Estimated total value of a customer over their relationship with us
+-- M in RFM — Monetary
+-- Used on: Customer Cohorts page
+
+Customer Lifetime Value =
+ROUND(
+    DIVIDE(
+        SUM(Fact_Sales[revenue]),
+        DISTINCTCOUNT(Fact_Sales[customer_key]),
+        0
+    ) * [Purchase Frequency], 2
+)
+
+----------------------------------------------------------
+
+-- Measure: Platinum Revenue
+-- Purpose: Revenue from top-tier Platinum loyalty customers only
+-- Used on: Customer Cohorts page
+
+Platinum Revenue =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    Dim_Customer[loyalty_tier] = "Platinum"
+)
+
+----------------------------------------------------------
+
+-- Measure: Platinum Revenue %
+-- Purpose: Percentage of total revenue coming from Platinum customers
+-- Shows ROI of loyalty program investment
+-- Used on: Customer Cohorts page
+
+Platinum Revenue % =
+ROUND(
+    DIVIDE(
+        [Platinum Revenue],
+        [Total Revenue],
+        0
+    ) * 100, 2
+)
+
+----------------------------------------------------------
+
+-- Measure: New Customer Revenue
+-- Purpose: Revenue from customers with tenure of 1 year or less
+-- Used on: Customer Cohorts page
+
+New Customer Revenue =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    FILTER(
+        Dim_Customer,
+        Dim_Customer[Customer_Tenure_Years] <= 1
+    )
+)
+
+----------------------------------------------------------
+
+-- Measure: Returning Customer Revenue
+-- Purpose: Revenue from customers with tenure greater than 1 year
+-- Used on: Customer Cohorts page
+
+Returning Customer Revenue =
+CALCULATE(
+    SUM(Fact_Sales[revenue]),
+    FILTER(
+        Dim_Customer,
+        Dim_Customer[Customer_Tenure_Years] > 1
+    )
+)
+
+
+════════════════════════════════════════
+GROUP 5 — DYNAMIC & UX MEASURES (Phase 9)
+════════════════════════════════════════
+
+----------------------------------------------------------
+
+-- Measure: Dynamic Title
+-- Purpose: Dashboard title that changes based on slicer selections
+-- SELECTEDVALUE returns the selected value or a default if multiple/none selected
+-- Used on: Every dashboard page as a text card title
+
+Dynamic Title =
+"RetailPulse 360 | " &
+SELECTEDVALUE(Dim_Store[city], "All Cities") &
+" | " &
+SELECTEDVALUE(Dim_Date[year], "All Years")
+
+----------------------------------------------------------
+
+-- Measure: Last Refresh
+-- Purpose: Shows when data was last refreshed from the database
+-- Professional standard — every enterprise dashboard shows this
+-- Used on: Footer of every dashboard page
+
+Last Refresh =
+"Data last refreshed: " & FORMAT(NOW(), "DD MMM YYYY HH:MM")
+
+----------------------------------------------------------
+
+-- Measure: No Data Message
+-- Purpose: Displays formatted revenue OR a friendly message if no data exists
+-- Prevents blank/empty visuals when filter combinations return nothing
+-- Used on: Key KPI cards
+
+No Data Message =
+IF(
+    ISBLANK(SUM(Fact_Sales[revenue])),
+    "No data available for selected filters",
+    FORMAT(SUM(Fact_Sales[revenue]), "₹ #,##0.00")
+)
+
+----------------------------------------------------------
+
+-- Measure: Revenue in Crores
+-- Purpose: Formats revenue in Indian business notation (Crores)
+-- Indian business context — all large numbers discussed in Crores/Lakhs
+-- Shows domain knowledge of Indian retail market
+-- Used on: Executive Command Center KPI card
+
+Revenue in Crores =
+"₹ " & FORMAT(
+    ROUND(SUM(Fact_Sales[revenue]) / 10000000, 2),
+    "#,##0.00"
+) & " Cr"
+
+----------------------------------------------------------
+
+-- Measure: Performance Badge
+-- Purpose: Assigns a performance label to each store based on YoY growth
+-- Makes performance immediately scannable in the store table
+-- Used on: Store Performance page — scorecard table
+
+Performance Badge =
+VAR GrowthPct = [Revenue YoY %]
+RETURN
+    IF(ISBLANK(GrowthPct), "—",
+        IF(GrowthPct >= 15, "🏆 Excellent",
+            IF(GrowthPct >= 5, "✅ Good",
+                IF(GrowthPct >= 0, "⚠ Stable",
+                    "🔴 Declining"
+                )
+            )
+        )
+    )
+
+
+══════════════════════════════════════════════════════════════════
+SUMMARY — TOTAL MEASURES WRITTEN
+══════════════════════════════════════════════════════════════════
+
+Group 0 — Basic Measures (Phase 8)       : 21 measures
+Group 1 — Time Intelligence (Phase 9)    :  8 measures
+Group 2 — Sales Analytics (Phase 9)      :  5 measures
+Group 3 — Inventory Analytics (Phase 9)  :  5 measures
+Group 4 — Customer Analytics (Phase 9)   :  7 measures
+Group 5 — Dynamic & UX (Phase 9)         :  5 measures
+──────────────────────────────────────────────────────
+TOTAL                                    : 51 measures
+
+NOTE: Measure 11 (Revenue Target What-If) was intentionally
+skipped as it requires a What-If Parameter slicer setup.
+This can be added as a future enhancement in Phase 15.
+
+══════════════════════════════════════════════════════════════════
+KEY DAX CONCEPTS DEMONSTRATED IN THIS PROJECT
+══════════════════════════════════════════════════════════════════
+
+1.  SUM, AVERAGE, COUNT, COUNTROWS   — Basic aggregations
+2.  DIVIDE                            — Safe division (no divide by zero)
+3.  CALCULATE                         — Context modification (most important DAX function)
+4.  ALL, ALLEXCEPT                    — Remove filters for totals/ratios
+5.  FILTER                            — Custom filter conditions
+6.  VAR / RETURN                      — Variables for performance & readability
+7.  SAMEPERIODLASTYEAR                — Year-over-year comparison
+8.  TOTALYTD, TOTALQTD, TOTALMTD      — Period-to-date calculations
+9.  DATEADD                           — Shift date context by N periods
+10. DATESINPERIOD                     — Dynamic date range window
+11. DATESYTD                          — Manual YTD date range
+12. LASTDATE                          — Last date in current context
+13. SUMX                              — Row-by-row iterator then sum
+14. TOPN                              — Select top N rows by ranking
+15. RELATED                           — Fetch value from related table
+16. SELECTEDVALUE                     — Get single selected slicer value
+17. ISBLANK                           — Check for empty/null results
+18. FORMAT                            — Format numbers and dates as text
+19. IF / nested IF                    — Conditional logic
+20. DISTINCTCOUNT                     — Count unique values
+21. MAX, MIN                          — Maximum and minimum values
+22. ABS                               — Absolute value
+
+══════════════════════════════════════════════════════════════════
+END OF MEASURES FILE — RetailPulse 360
+══════════════════════════════════════════════════════════════════

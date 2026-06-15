@@ -1,0 +1,537 @@
+══════════════════════════════════════════════════════════════════
+RETAILPULSE 360 — ARCHITECTURE NOTES & TECHNICAL DOCUMENTATION
+Project: Retail Business Intelligence & Decision Analytics Platform
+Author:  Rahul P
+College: Amrita Vishwa Vidyapeetham
+Tools:   Power BI · PostgreSQL · Python · SQL · DAX
+══════════════════════════════════════════════════════════════════
+
+
+════════════════════════════════════════
+1. PROJECT OVERVIEW
+════════════════════════════════════════
+
+Project Name:    RetailPulse 360
+Project Type:    End-to-End Business Intelligence Portfolio Project
+Domain:          Indian Retail (FMCG / Multi-city Retail Chain)
+Simulation:      12 stores across 5 cities in South India
+Data Volume:     646,629 sales rows | 87,840 inventory rows | 1,320 PO rows
+Time Period:     January 2022 to December 2024 (3 years)
+
+Business Problem:
+  RetailMart India, a mid-sized retail chain with 12 stores across
+  5 cities, was losing revenue monthly due to:
+  - Inventory blindness (no real-time stock visibility)
+  - Supplier delays (no reliability tracking)
+  - Siloed reporting (15 different Excel files from 15 departments)
+  - No demand forecasting (purchases based on gut feeling)
+  - Zero cross-store performance comparison
+
+Solution:
+  A centralised, end-to-end Business Intelligence platform that
+  connects all data sources into a single star schema data warehouse,
+  enabling real-time executive decisions across sales, inventory,
+  supply chain, and customer analytics.
+
+
+════════════════════════════════════════
+2. ARCHITECTURE DECISIONS
+════════════════════════════════════════
+
+DECISION 1 — DATABASE: PostgreSQL
+Reason:
+  - Open source and industry standard
+  - Supports complex SQL including window functions and CTEs
+  - Handles millions of rows efficiently
+  - Native connector available in Power BI
+  - Free to use — suitable for portfolio demonstration
+
+Alternative considered: MySQL
+Why PostgreSQL chosen: Better support for advanced SQL features
+and more commonly used in enterprise data engineering stacks.
+
+----------------------------------------------------------
+
+DECISION 2 — CONNECTION MODE: Import Mode
+Reason:
+  - Data refreshes daily (not every second)
+  - Import Mode stores data in Power BI's in-memory engine
+  - Sub-second DAX calculations on 646K rows
+  - More suitable for scheduled refresh pattern
+  - Better performance for complex DAX measures
+
+Alternative considered: DirectQuery Mode
+Why Import Mode chosen: Our use case is daily operational reporting,
+not real-time streaming. Import Mode gives 10x better performance
+for this scenario.
+
+----------------------------------------------------------
+
+DECISION 3 — DATA MODELING: Star Schema
+Reason:
+  - Optimized for analytical queries (OLAP workloads)
+  - Dimension tables filter fact tables efficiently
+  - Power BI's DAX engine is optimized for star schema
+  - Easy to understand and extend
+  - Industry standard for data warehousing
+
+Alternative considered: Snowflake Schema, Flat Table
+Why Star Schema chosen: Best balance between query performance,
+model simplicity, and DAX compatibility.
+
+----------------------------------------------------------
+
+DECISION 4 — ETL TOOL: Power Query (M Language)
+Reason:
+  - Native to Power BI — no additional tools needed
+  - Query folding pushes transformations to PostgreSQL
+  - Fully auditable — every step recorded
+  - Supports complex transformations without code
+  - Industry standard for Power BI ETL
+
+Alternative considered: Python ETL, SSIS
+Why Power Query chosen: Tightest integration with Power BI,
+query folding capability, and zero additional licensing cost.
+
+----------------------------------------------------------
+
+DECISION 5 — DATA SIMULATION: Python (psycopg2 + Faker)
+Reason:
+  - Real company data is confidential
+  - Python allows encoding real business patterns:
+    * Diwali/Pongal seasonal spikes
+    * Tier 1 vs Tier 2 city demand differences
+    * Realistic supplier delay distributions
+    * Customer loyalty tier distributions
+  - Synthetic data is industry standard for portfolio projects
+  - Shows Python skill alongside Power BI skill
+
+Libraries used:
+  psycopg2    → PostgreSQL connection and data loading
+  Faker       → Realistic Indian names, addresses
+  NumPy       → Statistical distributions for realistic data
+  random      → Controlled randomization with seed for reproducibility
+  datetime    → Date range generation
+
+
+════════════════════════════════════════
+3. DATABASE DESIGN
+════════════════════════════════════════
+
+Database Name:  retailpulse_db
+Schema Name:    retail
+Total Tables:   9 (3 Fact + 6 Dimension)
+
+FACT TABLES (measurable business events):
+──────────────────────────────────────────
+retail.fact_sales
+  Purpose:     Every sales transaction
+  Rows:        646,629
+  Grain:       One row per product sold per transaction
+  Key columns: sale_id, date_key, product_key, store_key,
+               customer_key, quantity, unit_price, discount_pct,
+               revenue, cost, gross_profit
+
+retail.fact_inventory
+  Purpose:     Daily stock level per product per store
+  Rows:        87,840
+  Grain:       One row per product per store per date snapshot
+  Key columns: inventory_id, date_key, product_key, store_key,
+               units_on_hand, units_received, units_sold,
+               reorder_point, is_stockout
+
+retail.fact_purchase_orders
+  Purpose:     Every purchase order placed with suppliers
+  Rows:        1,320
+  Grain:       One row per purchase order
+  Key columns: po_id, date_key, product_key, supplier_key,
+               store_key, qty_ordered, qty_received,
+               ordered_date, expected_date, actual_delivery_date,
+               unit_cost, total_cost, po_status
+
+
+DIMENSION TABLES (descriptive context):
+──────────────────────────────────────────
+retail.dim_date
+  Purpose:     Calendar dimension with Indian festival flags
+  Rows:        1,096 (Jan 2022 to Dec 2024)
+  Key columns: date_key, full_date, day_of_week, month_num,
+               month_name, quarter, year, is_weekend,
+               is_festival, festival_name
+  Festivals:   Diwali, Pongal, Tamil New Year, Eid,
+               Christmas, Independence Day
+
+retail.dim_product
+  Purpose:     Product catalog with Indian GST slabs
+  Rows:        60
+  Categories:  Grocery, Dairy, Beverages, Snacks, Personal Care,
+               Household, Frozen, Baby, Stationery, Seasonal, Health
+  Key columns: product_key, product_code, product_name, category,
+               subcategory, brand, mrp, gst_slab, unit_of_measure
+
+retail.dim_store
+  Purpose:     Store master with manager and location details
+  Rows:        12
+  Cities:      Chennai (3), Coimbatore (2), Madurai (2),
+               Bengaluru (3), Hyderabad (2)
+  Key columns: store_key, store_name, store_code, city, zone,
+               manager_name, opening_date, store_size_sqft,
+               region_key
+
+retail.dim_customer
+  Purpose:     Customer master with loyalty segmentation
+  Rows:        2,000
+  Tiers:       Bronze (50%), Silver (28%), Gold (15%), Platinum (7%)
+  Key columns: customer_key, customer_code, customer_name, gender,
+               city, loyalty_tier, acquisition_channel,
+               registration_date
+
+retail.dim_supplier
+  Purpose:     Supplier master with reliability scoring
+  Rows:        10
+  Key columns: supplier_key, supplier_code, supplier_name,
+               contact_person, city, avg_lead_time_days,
+               reliability_score, payment_terms_days
+
+retail.dim_region
+  Purpose:     Geographic hierarchy for city/state/tier classification
+  Rows:        5
+  Key columns: region_key, region_name, city, state, tier_level
+
+
+════════════════════════════════════════
+4. STAR SCHEMA RELATIONSHIPS
+════════════════════════════════════════
+
+Total Relationships: 12
+All relationships:
+  - Cardinality: One-to-Many (1:*)
+  - Filter direction: Single (Dimension → Fact)
+  - Status: Active
+
+Relationship Map:
+  Dim_Date     (date_key)     → Fact_Sales (date_key)
+  Dim_Date     (date_key)     → Fact_Inventory (date_key)
+  Dim_Date     (date_key)     → Fact_PurchaseOrders (date_key)
+  Dim_Product  (product_key)  → Fact_Sales (product_key)
+  Dim_Product  (product_key)  → Fact_Inventory (product_key)
+  Dim_Product  (product_key)  → Fact_PurchaseOrders (product_key)
+  Dim_Store    (store_key)    → Fact_Sales (store_key)
+  Dim_Store    (store_key)    → Fact_Inventory (store_key)
+  Dim_Store    (store_key)    → Fact_PurchaseOrders (store_key)
+  Dim_Supplier (supplier_key) → Fact_PurchaseOrders (supplier_key)
+  Dim_Customer (customer_key) → Fact_Sales (customer_key)
+  Dim_Region   (region_key)   → Dim_Store (region_key)
+
+Conformed Dimensions:
+  Dim_Date and Dim_Product are conformed dimensions — they connect
+  to multiple fact tables. This allows cross-fact analysis
+  (e.g. comparing sales quantity vs inventory units by product).
+
+
+════════════════════════════════════════
+5. POWER QUERY ETL TRANSFORMATIONS
+════════════════════════════════════════
+
+Total tables loaded:     10 (9 tables + 1 view)
+Custom columns added:    8
+
+Custom Column 1: GST_Label (Dim_Product)
+  Logic: Converts numeric GST slab to readable label
+  Values: GST Exempt | 5% GST | 12% GST | 18% GST | 28% GST
+
+Custom Column 2: Store_Age_Years (Dim_Store)
+  Logic: Current year minus store opening year
+  Purpose: Analyse performance vs store maturity
+
+Custom Column 3: Supplier_Risk (Dim_Supplier)
+  Logic: reliability_score >= 9.0 → Low Risk
+         reliability_score >= 8.0 → Medium Risk
+         else                     → High Risk
+
+Custom Column 4: Customer_Tenure_Years (Dim_Customer)
+  Logic: Current year minus registration year
+  Purpose: New vs returning customer segmentation
+
+Custom Column 5: Stock_Status (Fact_Inventory)
+  Logic: units_on_hand = 0      → Stockout
+         units_on_hand <= reorder → Low Stock
+         else                   → Adequate
+
+Custom Column 6: Delay_Days (Fact_PurchaseOrders)
+  Logic: actual_delivery_date - expected_date
+  Purpose: Measures supplier delay in days
+
+Custom Column 7: Is_On_Time (Fact_PurchaseOrders)
+  Logic: Delay_Days <= 0 → On Time
+         Delay_Days > 0  → Delayed
+
+Data type corrections applied to all tables:
+  - All key columns set to Whole Number
+  - All financial columns set to Decimal Number
+  - All date columns set to Date type
+  - All boolean columns set to True/False
+  - Null values in festival_name replaced with "No Festival"
+
+
+════════════════════════════════════════
+6. DAX MEASURES SUMMARY
+════════════════════════════════════════
+
+Total measures written: 51
+Stored in table:        _Measures (dedicated measures table)
+
+Group 0 — Basic Measures:          21 measures
+Group 1 — Time Intelligence:        8 measures
+Group 2 — Sales Analytics:          5 measures
+Group 3 — Inventory Analytics:      5 measures
+Group 4 — Customer Analytics:       7 measures
+Group 5 — Dynamic & UX:             5 measures
+
+Key DAX concepts used:
+  CALCULATE, ALL, ALLEXCEPT, FILTER, VAR/RETURN,
+  SAMEPERIODLASTYEAR, TOTALYTD, TOTALQTD, TOTALMTD,
+  DATEADD, DATESINPERIOD, DATESYTD, LASTDATE,
+  SUMX, TOPN, RELATED, SELECTEDVALUE, ISBLANK,
+  FORMAT, DISTINCTCOUNT, DIVIDE, IF
+
+Notable measures:
+  Revenue YoY %         → Year-over-year growth using SAMEPERIODLASTYEAR
+  Revenue Rolling 3M    → 3-month moving average using DATESINPERIOD
+  Inventory Value at Risk → SUMX with RELATED across two tables
+  Stockout Warning      → Dynamic alert text based on DIO threshold
+  Performance Badge     → Emoji badge based on YoY growth tier
+  Revenue in Crores     → Indian business number formatting
+  Dynamic Title         → Dashboard title that changes with slicers
+
+
+════════════════════════════════════════
+7. DASHBOARD PAGES
+════════════════════════════════════════
+
+Canvas size: 1280 x 720 (standard widescreen)
+Color theme:
+  Primary Dark:   #1A1A2E  (navy — headers)
+  Accent Blue:    #0F3460  (medium blue — key visuals)
+  Highlight:      #E94560  (red-pink — alerts)
+  Positive:       #43A047  (green — good performance)
+  Warning:        #FB8C00  (amber — caution)
+  Negative:       #E53935  (red — bad performance)
+  Background:     #F8F9FA  (light gray — canvas)
+
+Page 1: Executive Command Center
+  Audience:  CEO
+  Visuals:   4 KPI cards, revenue by city bar chart,
+             monthly trend line chart, category donut,
+             top stores table, 3 slicers
+  Key KPIs:  Total Revenue, Gross Margin %, YoY Growth Label,
+             Revenue in Crores
+
+Page 2: Store Performance
+  Audience:  Regional Manager
+  Visuals:   Store ranking bar chart, revenue per sqft,
+             manager scorecard table with badges
+  Key KPIs:  Revenue per Sqft, Avg Transaction Value,
+             Performance Badge, Revenue Contribution %
+
+Page 3: Inventory Intelligence
+  Audience:  Supply Chain Head
+  Visuals:   Stockout rate by store, stock status donut,
+             stockout by category, inventory detail table
+  Key KPIs:  Stockout Rate %, Days Inventory Outstanding,
+             Stockout Warning, Fill Rate %
+
+Page 4: Demand Forecasting
+  Audience:  Procurement Team
+  Visuals:   AI forecast line chart (30-day, 95% CI),
+             revenue heatmap matrix, festival revenue card
+  Key KPIs:  Revenue Rolling 3M, Festival Revenue
+
+Page 5: Supplier Tracker
+  Audience:  Purchase Manager
+  Visuals:   Reliability table, PO status donut,
+             on-time delivery bar chart with 85% target line
+  Key KPIs:  On Time Delivery %, Avg Delay Days,
+             Delayed Orders
+
+Page 6: Customer Cohorts
+  Audience:  Marketing Head
+  Visuals:   Loyalty tier column chart, acquisition channel donut,
+             new vs returning stacked bar, loyalty table
+  Key KPIs:  Revenue per Customer, Purchase Frequency,
+             Platinum Revenue %, Customer Lifetime Value
+
+Page 7: Profitability Deep-Dive
+  Audience:  CFO
+  Visuals:   Gross margin by category, revenue vs cost vs profit,
+             product profitability table with 20% target line
+  Key KPIs:  Gross Margin %, Profit per Transaction,
+             Top 5 Products Revenue, Discount Amount
+
+
+════════════════════════════════════════
+8. ADVANCED FEATURES
+════════════════════════════════════════
+
+ROW LEVEL SECURITY (RLS):
+  6 roles configured:
+    CEO                        → Full access, no filter
+    CFO                        → Full access, no filter
+    Regional Manager Chennai   → Dim_Store[city] = "Chennai"
+    Regional Manager Bengaluru → Dim_Store[city] = "Bengaluru"
+    Regional Manager Hyderabad → Dim_Store[city] = "Hyderabad"
+    Store Manager              → Dim_Store[manager_name] =
+                                 USERPRINCIPALNAME()
+
+DRILL-THROUGH:
+  Page: Store Detail
+    Drill-through field: Dim_Store[city]
+    Shows: All stores in selected city, monthly trend,
+           top products, KPI cards
+
+  Page: Product Detail
+    Drill-through field: Dim_Product[category]
+    Shows: Category revenue by store, monthly trend,
+           top products in category
+
+BOOKMARKS:
+  4 bookmarks on Executive Command Center:
+    2022 View → filters to year 2022
+    2023 View → filters to year 2023
+    2024 View → filters to year 2024
+    Full View → shows all years
+
+CUSTOM TOOLTIPS:
+  Tooltip page: Tooltip Store
+    Attached to: Revenue by City bar chart
+    Shows on hover: Store name, revenue, margin, top categories
+
+CONDITIONAL FORMATTING:
+  Stock Status table  → Red/Amber/Green cell backgrounds
+  Supplier Risk       → Color-coded risk levels
+  Manager Scorecard   → Revenue gradient heat map
+  YoY Growth column   → Up/Down/Neutral arrow icons
+
+
+════════════════════════════════════════
+9. DEPLOYMENT DETAILS
+════════════════════════════════════════
+
+Platform:          Power BI Service
+Workspace:         RetailPulse360 Portfolio
+Gateway:           RetailPulse360-Gateway (On-premises)
+Gateway status:    Running on local machine (RAHUL)
+Data source:       RetailPulse360-PostgreSQL
+Connection:        localhost → retailpulse_db (Not encrypted)
+Scheduled refresh: Daily at 06:00 AM IST (UTC+05:30)
+RLS assigned:      Yes (roles configured in Service)
+
+
+════════════════════════════════════════
+10. PERFORMANCE OPTIMIZATION
+════════════════════════════════════════
+
+Optimizations applied:
+  1. VAR used in all multi-reference DAX measures
+  2. FILTER applied before SUMX in iterator measures
+  3. ALL List slicers converted to Dropdown style
+  4. Unnecessary visual interactions disabled per page
+  5. Foreign key columns hidden from report view
+  6. Summarization set to Don't summarize on ID columns
+  7. Auto date/time disabled (using custom Dim_Date)
+  8. Dim_Date marked as official date table
+  9. Query folding verified for Fact_Sales in Power Query
+  10. Dedicated _Measures table for organized measure storage
+
+Target page load times:
+  Page 1 Executive:     Under 2 seconds
+  Page 3 Inventory:     Under 2 seconds (87K rows)
+  Page 5 Supplier:      Under 1 second (small dataset)
+  All other pages:      Under 1.5 seconds
+
+
+════════════════════════════════════════
+11. INTERVIEW TALKING POINTS
+════════════════════════════════════════
+
+Q: Why did you choose PostgreSQL?
+A: Industry standard open-source RDBMS, supports advanced SQL
+   (window functions, CTEs, FILTER clause), native Power BI
+   connector, handles millions of rows efficiently.
+
+Q: Why star schema instead of a flat table?
+A: Star schema is optimized for OLAP analytical workloads.
+   Power BI's Vertipaq engine compresses dimension tables
+   extremely efficiently. DAX filter propagation works
+   naturally from dimension to fact tables. Easier to extend
+   with new dimensions without restructuring fact tables.
+
+Q: Why Import Mode instead of DirectQuery?
+A: Our use case is daily operational reporting not real-time
+   streaming. Import Mode gives 10x better DAX performance,
+   supports all DAX functions, and works better with complex
+   time intelligence measures.
+
+Q: How did you handle data quality?
+A: Three-layer approach:
+   1. Python simulation with controlled randomization (seed=42)
+      encoding realistic business patterns
+   2. Power Query ETL for null removal, type correction,
+      deduplication, and business enrichment
+   3. DAX measures using ISBLANK and DIVIDE with
+      alternate results to handle edge cases
+
+Q: Explain CALCULATE in one sentence.
+A: CALCULATE evaluates an expression in a modified filter
+   context — it is the most powerful and most used function
+   in DAX because it lets you override the filter context
+   that visuals and slicers apply automatically.
+
+Q: What is the difference between SUMX and SUM?
+A: SUM aggregates an entire column in one operation.
+   SUMX iterates row by row, evaluates an expression for
+   each row, then sums the results. SUMX is needed when
+   the calculation requires row-level context
+   (e.g. quantity × unit_price per row).
+
+Q: How does Row Level Security work?
+A: RLS works by applying a DAX filter to a dimension table
+   when a user logs in. For Store Manager role I used
+   USERPRINCIPALNAME() which returns the logged-in user's
+   email and matches it against the manager_name column.
+   The filter then propagates through relationships to all
+   connected fact tables automatically.
+
+
+════════════════════════════════════════
+12. BUSINESS IMPACT METRICS
+════════════════════════════════════════
+
+Problem 1: Inventory Blindness
+  Solution: Early warning system flags SKUs with < 7 days stock
+  Metric:   Stockout Rate % tracked per store per category
+
+Problem 2: Supplier Unreliability
+  Solution: Reliability scoring system (Low/Medium/High Risk)
+  Metric:   On Time Delivery % with 85% industry benchmark line
+
+Problem 3: Revenue Leakage
+  Solution: Gross margin analysis by product and category
+  Metric:   Gross Margin % with 20% target line
+
+Problem 4: No Demand Planning
+  Solution: 90-day AI forecast with 95% confidence interval
+  Metric:   Revenue Rolling 3M for trend smoothing
+
+Problem 5: Customer Blindness
+  Solution: RFM segmentation + loyalty tier analysis
+  Metric:   Revenue per Customer, CLV, Platinum Revenue %
+
+Problem 6: Siloed Reporting
+  Solution: Single source of truth replacing 15 Excel files
+  Metric:   7 role-based dashboards for 5 different personas
+
+══════════════════════════════════════════════════════════════════
+END OF ARCHITECTURE NOTES — RetailPulse 360
+Author: Rahul P | Amrita Vishwa Vidyapeetham
+══════════════════════════════════════════════════════════════════
