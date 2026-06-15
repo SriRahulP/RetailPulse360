@@ -19,7 +19,7 @@
 <br/>
 
 [![GitHub stars](https://img.shields.io/github/stars/your-username/RetailPulse360?style=social)](https://github.com/SriRahulP/RetailPulse360)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat&logo=linkedin)](www.linkedin.com/in/srirahulp2005)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat&logo=linkedin)](https://www.linkedin.com/in/srirahulp2005)
 [![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-View%20Now-F2C811?style=flat&logo=powerbi)](https://app.powerbi.com/groups/me/reports/09d2ac1c-2726-49f5-95b4-7988ae63bb66/7cefead76b8f1f7831b0?experience=power-bi
 )
 
@@ -590,7 +590,7 @@ Mark Dim_Date as date table
 | Resource | Link |
 |----------|------|
 | 📊 **Live Dashboard** | [View on Power BI Service](https://app.powerbi.com/groups/me/reports/09d2ac1c-2726-49f5-95b4-7988ae63bb66/7cefead76b8f1f7831b0?experience=power-bi) |
-| 💼 **LinkedIn Profile** | [Connect with me](www.linkedin.com/in/srirahulp2005) |
+| 💼 **LinkedIn Profile** | [Connect with me](https://www.linkedin.com/in/srirahulp2005) |
 | 📧 **Email** | rahulnjr111@gmail.com |
 
 </div>
