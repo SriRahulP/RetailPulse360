@@ -18,9 +18,10 @@
 
 <br/>
 
-[![GitHub stars](https://img.shields.io/github/stars/your-username/RetailPulse360?style=social)](https://github.com/your-username/RetailPulse360)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat&logo=linkedin)](your-linkedin-here)
-[![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-View%20Now-F2C811?style=flat&logo=powerbi)](your-powerbi-link-here)
+[![GitHub stars](https://img.shields.io/github/stars/your-username/RetailPulse360?style=social)](https://github.com/SriRahulP/RetailPulse360)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat&logo=linkedin)](www.linkedin.com/in/srirahulp2005)
+[![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-View%20Now-F2C811?style=flat&logo=powerbi)](https://app.powerbi.com/groups/me/reports/09d2ac1c-2726-49f5-95b4-7988ae63bb66/7cefead76b8f1f7831b0?experience=power-bi
+)
 
 </div>
 
